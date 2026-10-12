@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Polo Antiguo — Oportunidades{% endblock %}
+
+{% block content %}
+<header class="site-header">
+  <div class="header-inner">
+    <div class="brand">
+      <span class="brand-name">Polo Antiguo</span>
+      <span class="brand-sub">radar de oportunidades</span>
+    </div>
+    <div class="header-meta">
+      {% if oportunidades_count > 0 %}
+        <span class="badge-oportunidades" id="oportunidades-count">{{ oportunidades_count }}</span>
+      {% endif %}
+      <a href="/admin" class="header-link">Admin</a>
+    </div>
+  </div>
+</header>
+
+<main class="main-content">
+
+  <!-- Filtros -->
+  <section class="filters-bar">
+    <div class="filter-group filter-tipo">
+      <button class="pill active" data-val="todos">Todos</button>
+      <button class="pill" data-val="vendedor">Vendedores</button>
+      <button class="pill" data-val="comprador">Compradores</button>
+      <button class="pill" data-val="herencia">Herencias</button>
+      <button class="pill" data-val="remate">Remates</button>
+    </div>
+    <div class="filter-group filter-cat">
+      <button class="pill active" data-val="todas">Todas</button>
+      <button class="pill" data-val="reloj">Relojes</button>
+      <button class="pill" data-val="plata">Plata</button>
+      <button class="pill" data-val="militaria">Militaria</button>
+      <button class="pill" data-val="monedas">Monedas</button>
+      <button class="pill" data-val="mueble">Muebles</button>
+      <button class="pill" data-val="porcelana">Porcelana</button>
+      <button class="pill" data-val="radio">Radios</button>
+    </div>
+    <label class="filter-nuevo">
+      <input type="checkbox" id="chk-nuevos"> Solo no leídos
+    </label>
+  </section>
+
+  <!-- Cards -->
+  <section class="cards-grid">
+    {% if listados %}
+      {% for item in listados %}
+      <article class="card tipo-{{ item.tipo }} {% if item.leido %}leido{% endif %}"
+               data-id="{{ item.id }}"
+               data-tipo="{{ item.tipo }}"
+               data-cat="{{ item.categoria }}">
+
+        <div class="card-score-bar">
+          <div class="score-fill" style="width: {{ item.score * 10 }}%"></div>
+        </div>
+
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="badge-tipo tipo-{{ item.tipo }}">{{ item.tipo }}</span>
+            <span class="badge-cat">{{ item.categoria }}</span>
+            <span class="card-fuente">{{ item.fuente }}</span>
+            <span class="card-score">{{ item.score }}/10</span>
+          </div>
+
+          <h2 class="card-title">
+            <a href="{{ item.url }}" target="_blank" rel="noopener">{{ item.titulo }}</a>
+          </h2>
+
+          {% if item.precio %}
+          <p class="card-precio">
+            {{ item.moneda }} {{ "{:,.0f}".format(item.precio) }}
+          </p>
+          {% endif %}
+
+          {% if item.ubicacion %}
+          <p class="card-ubicacion">{{ item.ubicacion }}</p>
+          {% endif %}
+
+          <p class="card-razon">{{ item.razon }}</p>
+
+          {% if item.mensaje_wa %}
+          <div class="wa-block">
+            <p class="wa-msg">{{ item.mensaje_wa }}</p>
+            <button class="btn-wa" onclick="copiarWA(this)">
+              Copiar mensaje WA
+            </button>
+          </div>
+          {% endif %}
+
+          <div class="card-actions">
+            <a href="{{ item.url }}" class="btn-ver" target="_blank" rel="noopener">Ver publicación</a>
+            {% if not item.leido %}
+            <button class="btn-leido" onclick="marcarLeido(this)">Marcar leído</button>
+            {% endif %}
+          </div>
+        </div>
+      </article>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state">
+        <p class="empty-titulo">Sin oportunidades aún</p>
+        <p class="empty-sub">El sistema busca automáticamente cada 6 horas.<br>
+           Pedile al administrador que corra un ciclo manual.</p>
+      </div>
+    {% endif %}
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  {% if ultima_busqueda %}
+  <p>Última búsqueda: {{ ultima_busqueda }}</p>
+  {% endif %}
+  <p>Polo Antiguo · Buenos Aires</p>
+</footer>
+{% endblock %}

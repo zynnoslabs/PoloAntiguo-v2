@@ -1,0 +1,508 @@
+/* ─── Polo Antiguo v2 — Estética Buenos Aires colonial ─────────────────────
+   Paleta: yeso envejecido · óxido colonial · pátina de bronce · papel viejo
+   Tipografía: Cormorant Garamond (display) + Inter (cuerpo)
+   Mobile-first — diseñado para Juan Carlos en el celular
+──────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --yeso:   #EDEAE3;   /* fondo */
+  --papel:  #F5F0E8;   /* cards */
+  --hierro: #1E1A17;   /* texto y header */
+  --oxido:  #7A2E1E;   /* vendedor / herencia */
+  --patina: #2E5E4E;   /* comprador */
+  --morado: #5A3A6B;   /* remate */
+  --dorado: #6B5A2C;   /* herencia secundario */
+  --plata:  #9BA5A0;   /* texto secundario */
+  --borde:  #D6D0C6;
+  --score-bg: #E5E0D8;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--yeso);
+  color: var(--hierro);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; }
+
+/* ─── Flash messages ─────────────────────────────────────────────────────── */
+.flash-container { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 200; }
+.flash { padding: 10px 20px; border-radius: 2px; font-size: 13px; margin-bottom: 6px; }
+.flash-error { background: var(--oxido); color: #fff; }
+.flash-success { background: var(--patina); color: #fff; }
+
+/* ─── Header ─────────────────────────────────────────────────────────────── */
+.site-header {
+  background: var(--hierro);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  padding: 14px 16px;
+}
+.header-inner {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.brand { display: flex; flex-direction: column; }
+.brand-name {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--papel);
+  line-height: 1.1;
+}
+.brand-sub {
+  font-size: 10px;
+  color: var(--plata);
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+.header-meta { display: flex; align-items: center; gap: 12px; }
+.badge-oportunidades {
+  background: var(--oxido);
+  color: #fff;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 18px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 2px;
+  min-width: 32px;
+  text-align: center;
+  line-height: 1.4;
+}
+.header-link { font-size: 12px; color: var(--plata); font-weight: 500; }
+.header-link:hover { color: var(--papel); }
+
+/* ─── Main content ───────────────────────────────────────────────────────── */
+.main-content {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 20px 16px 48px;
+}
+
+/* ─── Filtros ────────────────────────────────────────────────────────────── */
+.filters-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.filter-group {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.pill {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--hierro);
+  border: 1px solid var(--borde);
+  background: var(--papel);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.pill:hover { border-color: var(--hierro); }
+.pill.active {
+  background: var(--hierro);
+  color: var(--papel);
+  border-color: var(--hierro);
+}
+.filter-cat .pill.active { background: var(--dorado); border-color: var(--dorado); }
+.filter-nuevo {
+  font-size: 12px;
+  color: var(--plata);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.filter-nuevo input { accent-color: var(--oxido); }
+
+/* ─── Cards grid ─────────────────────────────────────────────────────────── */
+.cards-grid { display: flex; flex-direction: column; gap: 12px; }
+
+/* ─── Card ───────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--papel);
+  border-radius: 3px;
+  overflow: hidden;
+  transition: opacity 0.2s;
+}
+.card.leido { opacity: 0.5; }
+
+/* barra de score (4px, llena % según score) */
+.card-score-bar {
+  height: 4px;
+  background: var(--score-bg);
+  width: 100%;
+}
+.score-fill { height: 4px; }
+.card.tipo-vendedor .score-fill,
+.card.tipo-herencia .score-fill { background: var(--oxido); }
+.card.tipo-comprador .score-fill { background: var(--patina); }
+.card.tipo-remate    .score-fill { background: var(--morado); }
+
+/* borde izquierdo por tipo */
+.card-body {
+  padding: 14px 16px 16px;
+  border-left: 3px solid transparent;
+}
+.card.tipo-vendedor .card-body,
+.card.tipo-herencia .card-body { border-left-color: var(--oxido); }
+.card.tipo-comprador .card-body { border-left-color: var(--patina); }
+.card.tipo-remate    .card-body { border-left-color: var(--morado); }
+
+.card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.badge-tipo {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 2px;
+  background: var(--score-bg);
+  color: var(--hierro);
+}
+.badge-tipo.tipo-vendedor,
+.badge-tipo.tipo-herencia { background: #F0E5E3; color: var(--oxido); }
+.badge-tipo.tipo-comprador { background: #E3EDE9; color: var(--patina); }
+.badge-tipo.tipo-remate    { background: #EDE3F0; color: var(--morado); }
+.badge-cat {
+  font-size: 10px;
+  color: var(--plata);
+  padding: 2px 7px;
+  border: 1px solid var(--borde);
+  border-radius: 2px;
+}
+.card-fuente { font-size: 11px; color: var(--plata); margin-left: auto; }
+.card-score  { font-size: 11px; font-weight: 600; color: var(--plata); }
+
+.card-title {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--hierro);
+  margin-bottom: 6px;
+}
+.card-title a:hover { text-decoration: underline; }
+.card-precio  { font-size: 14px; font-weight: 600; color: var(--hierro); margin-bottom: 4px; }
+.card-ubicacion { font-size: 12px; color: var(--plata); margin-bottom: 6px; }
+.card-razon {
+  font-size: 12px;
+  color: #6B6560;
+  font-style: italic;
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+/* Bloque mensaje WA */
+.wa-block {
+  margin-bottom: 12px;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.wa-msg {
+  background: #EFF5F2;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--hierro);
+  border-left: 2px solid var(--patina);
+  white-space: pre-wrap;
+}
+.card.tipo-vendedor .wa-msg,
+.card.tipo-herencia .wa-msg {
+  background: #F7EFEC;
+  border-left-color: var(--oxido);
+}
+
+.card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Buttons */
+.btn-wa {
+  flex: 1;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  padding: 9px 14px;
+  background: var(--hierro);
+  color: var(--papel);
+  border: none;
+  border-radius: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.btn-wa:hover { opacity: 0.85; }
+.btn-ver {
+  display: inline-flex;
+  align-items: center;
+  padding: 9px 14px;
+  background: transparent;
+  color: var(--hierro);
+  border: 1px solid var(--borde);
+  border-radius: 2px;
+  font-size: 12px;
+  font-weight: 500;
+  transition: border-color 0.15s;
+}
+.btn-ver:hover { border-color: var(--hierro); }
+.btn-leido {
+  display: inline-flex;
+  align-items: center;
+  padding: 9px 12px;
+  background: transparent;
+  color: var(--plata);
+  border: 1px solid var(--borde);
+  border-radius: 2px;
+  font-size: 11px;
+  transition: border-color 0.15s;
+}
+.btn-leido:hover { border-color: var(--plata); }
+
+/* ─── Empty state ────────────────────────────────────────────────────────── */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+}
+.empty-titulo {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 26px;
+  color: var(--plata);
+  margin-bottom: 8px;
+}
+.empty-sub { font-size: 13px; color: var(--plata); line-height: 1.7; }
+
+/* ─── Footer ─────────────────────────────────────────────────────────────── */
+.site-footer {
+  text-align: center;
+  padding: 24px 16px;
+  font-size: 11px;
+  color: var(--plata);
+  border-top: 1px solid var(--borde);
+  margin-top: 16px;
+  line-height: 1.8;
+}
+
+/* ─── Admin ──────────────────────────────────────────────────────────────── */
+.admin-content { }
+.admin-titulo {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 28px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  color: var(--hierro);
+}
+.section-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--hierro);
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--borde);
+}
+
+/* Stats */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 28px;
+}
+.stat-card {
+  background: var(--papel);
+  padding: 16px;
+  border-radius: 3px;
+  border-left: 3px solid var(--oxido);
+}
+.stat-num {
+  display: block;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--oxido);
+  line-height: 1;
+}
+.stat-num.stat-small { font-size: 14px; font-family: 'Inter', sans-serif; color: var(--hierro); }
+.stat-label { display: block; font-size: 11px; color: var(--plata); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* Categorías */
+.cat-breakdown { margin-bottom: 28px; }
+.cat-list { display: flex; flex-direction: column; gap: 6px; }
+.cat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--papel);
+  border-radius: 2px;
+  font-size: 13px;
+}
+.cat-nombre { color: var(--hierro); font-weight: 500; }
+.cat-count { color: var(--oxido); font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 600; }
+
+/* Ciclo manual */
+.manual-section { margin-bottom: 28px; }
+.manual-desc { font-size: 13px; color: var(--plata); margin-bottom: 12px; }
+#btn-ciclo, .btn-ciclo {
+  display: block;
+  width: 100%;
+  background: var(--oxido);
+  color: #fff;
+  border: none;
+  padding: 13px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 2px;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: opacity 0.15s;
+}
+#btn-ciclo:hover, .btn-ciclo:hover { opacity: 0.9; }
+#btn-ciclo:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Tabla env vars */
+.env-section { margin-bottom: 28px; }
+.env-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.env-table th {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 2px solid var(--borde);
+  color: var(--plata);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 10px;
+}
+.env-table td { padding: 8px 10px; border-bottom: 1px solid var(--borde); vertical-align: middle; }
+.env-name code {
+  background: var(--score-bg);
+  padding: 2px 6px;
+  border-radius: 2px;
+  font-size: 11px;
+}
+.env-status { text-align: center; font-size: 16px; }
+.env-ok    { color: var(--patina); }
+.env-missing { color: var(--oxido); }
+.env-desc  { color: var(--plata); }
+
+/* ─── Login ──────────────────────────────────────────────────────────────── */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--hierro);
+}
+.login-box {
+  background: var(--papel);
+  padding: 40px 32px;
+  border-radius: 3px;
+  width: 100%;
+  max-width: 320px;
+}
+.login-brand {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.login-brand .brand-name {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--hierro);
+  display: block;
+}
+.login-brand .brand-sub { color: var(--plata); font-size: 11px; display: block; margin-top: 3px; }
+.login-form { display: flex; flex-direction: column; gap: 10px; }
+.login-label { font-size: 12px; color: var(--plata); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+.login-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--borde);
+  border-radius: 2px;
+  font-size: 14px;
+  background: var(--yeso);
+  color: var(--hierro);
+}
+.login-input:focus { outline: 2px solid var(--oxido); border-color: transparent; }
+.login-btn {
+  background: var(--hierro);
+  color: var(--papel);
+  border: none;
+  padding: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 2px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-top: 4px;
+  transition: opacity 0.15s;
+}
+.login-btn:hover { opacity: 0.9; }
+.login-error {
+  color: var(--oxido);
+  font-size: 12px;
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+/* ─── Toast ──────────────────────────────────────────────────────────────── */
+#toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  background: var(--hierro);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 2px;
+  font-size: 13px;
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+  pointer-events: none;
+  z-index: 999;
+  white-space: nowrap;
+}
+#toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ─── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .brand-name { font-size: 17px; letter-spacing: 2px; }
+  .card-title { font-size: 17px; }
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat-num { font-size: 30px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; }
+}

@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Admin — Polo Antiguo{% endblock %}
+
+{% block content %}
+<header class="site-header">
+  <div class="header-inner">
+    <div class="brand">
+      <span class="brand-name">Polo Antiguo</span>
+      <span class="brand-sub">administración</span>
+    </div>
+    <div class="header-meta">
+      <a href="/" class="header-link">Dashboard</a>
+      <a href="/logout" class="header-link">Salir</a>
+    </div>
+  </div>
+</header>
+
+<main class="main-content admin-content">
+
+  <h1 class="admin-titulo">Panel de control</h1>
+
+  <!-- Stats -->
+  <section class="stats-grid">
+    <div class="stat-card">
+      <span class="stat-num">{{ stats.total }}</span>
+      <span class="stat-label">Total analizados</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-num">{{ stats.relevantes }}</span>
+      <span class="stat-label">Relevantes</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-num">{{ stats.serp_hoy }}</span>
+      <span class="stat-label">Búsquedas hoy</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-num stat-small">{{ stats.ultima_busqueda or '—' }}</span>
+      <span class="stat-label">Última búsqueda</span>
+    </div>
+  </section>
+
+  <!-- Por categoría -->
+  {% if stats.por_categoria %}
+  <section class="cat-breakdown">
+    <h2 class="section-title">Por categoría</h2>
+    <div class="cat-list">
+      {% for cat, n in stats.por_categoria.items() %}
+      <div class="cat-row">
+        <span class="cat-nombre">{{ cat }}</span>
+        <span class="cat-count">{{ n }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- Acción manual -->
+  <section class="manual-section">
+    <h2 class="section-title">Ciclo manual</h2>
+    <p class="manual-desc">Lanza una búsqueda ahora sin esperar las 6 horas. Puede tardar 2–4 minutos.</p>
+    <button id="btn-ciclo" class="btn-ciclo">Correr ciclo ahora</button>
+  </section>
+
+  <!-- Variables de entorno necesarias -->
+  <section class="env-section">
+    <h2 class="section-title">Variables de entorno (Render)</h2>
+    <table class="env-table">
+      <thead>
+        <tr><th>Variable</th><th>Estado</th><th>Descripción</th></tr>
+      </thead>
+      <tbody>
+        {% for var in env_vars %}
+        <tr>
+          <td class="env-name"><code>{{ var.name }}</code></td>
+          <td class="env-status {% if var.set %}env-ok{% else %}env-missing{% endif %}">
+            {{ '✓' if var.set else '✗' }}
+          </td>
+          <td class="env-desc">{{ var.desc }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <p>Polo Antiguo Admin · Buenos Aires</p>
+</footer>
+{% endblock %}

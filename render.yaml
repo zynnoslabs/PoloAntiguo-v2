@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: polo-antiguo-v2
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: SERPAPI_KEY
+        sync: false
+      - key: EBAY_APP_ID
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: EMAIL_TO
+        sync: false
+      - key: EMAIL_PASS
+        sync: false
+      - key: ADMIN_PASS
+        sync: false
+      - key: DB_PATH
+        value: /opt/render/project/src/db.sqlite
