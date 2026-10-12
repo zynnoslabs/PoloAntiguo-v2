@@ -2,7 +2,7 @@
 analizador.py — Polo Antiguo v2
 Groq analiza cada listado y genera mensaje WA listo para enviar.
 """
-import os, json, logging
+import os, re, json, logging
 from groq import Groq
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -11,46 +11,62 @@ log = logging.getLogger("analizador")
 client = Groq(api_key=os.environ.get("GROQ_API_KEY",""))
 
 _MODELO_CACHE = None
-# ### CAMBIO AQUÍ ### — modelos actualizados, más confiables primero
+# ### CAMBIO AQUÍ ### — solo modelos confirmados en Groq (oct 2026)
 _MODELOS = [
-    "llama-3.3-70b-versatile",   # principal — más estable
-    "llama-3.1-8b-instant",      # rápido, fallback
-    "llama3-70b-8192",           # legacy pero funciona
-    "gemma2-9b-it",              # alternativa
-    "mixtral-8x7b-32768",        # alternativa
+    "llama-3.1-8b-instant",      # free tier, rápido
+    "llama-3.3-70b-versatile",   # más capaz, mismo tier
+    "openai/gpt-oss-20b",        # fallback
 ]
 
 def _detectar_modelo() -> str:
     global _MODELO_CACHE
     if _MODELO_CACHE:
         return _MODELO_CACHE
-    # ### CAMBIO AQUÍ ### — env var override (configurable desde Render)
     override = os.environ.get("GROQ_MODEL","")
     if override:
         _MODELO_CACHE = override
         log.info(f"Modelo (env): {override}")
         return override
-    # ### CAMBIO AQUÍ ### — probe sin response_format para no fallar por JSON vacío
     for m in _MODELOS:
         try:
             resp = client.chat.completions.create(
                 model=m,
-                messages=[{"role":"user","content":"Respondé solo: OK"}],
-                max_tokens=10, temperature=0,
+                messages=[{"role":"user","content":"Respondé: OK"}],
+                max_tokens=5, temperature=0,
             )
-            texto = resp.choices[0].message.content or ""
-            if texto.strip():          # cualquier respuesta no vacía = modelo OK
+            if resp.choices[0].message.content:
                 _MODELO_CACHE = m
                 log.info(f"Modelo activo: {m}")
                 return m
         except Exception as e:
-            err = str(e).lower()
-            log.warning(f"Modelo no disponible: {m} — {err[:80]}")
-            continue
-    # fallback final
+            log.warning(f"Modelo no disponible: {m} — {str(e)[:80]}")
     _MODELO_CACHE = _MODELOS[0]
     log.error("Ningún modelo respondió. Configura GROQ_MODEL en Render.")
     return _MODELO_CACHE
+
+def _extraer_json(texto: str) -> dict:
+    """Extrae el primer bloque JSON del texto de respuesta."""
+    # ### CAMBIO AQUÍ ### — parseo sin depender de response_format
+    # Intento directo
+    try:
+        return json.loads(texto.strip())
+    except Exception:
+        pass
+    # Buscar bloque ```json ... ```
+    m = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", texto, re.DOTALL)
+    if m:
+        try:
+            return json.loads(m.group(1))
+        except Exception:
+            pass
+    # Buscar primer { ... } en el texto
+    m = re.search(r"\{.*?\}", texto, re.DOTALL)
+    if m:
+        try:
+            return json.loads(m.group(0))
+        except Exception:
+            pass
+    return {}
 
 PERFIL = """
 Polo Antiguo — casa de antigüedades argentina, Juan Carlos Santos.
@@ -72,13 +88,13 @@ Analizás listados de antigüedades y decidís si son oportunidades de negocio.
 
 {PERFIL}
 
-Respondé ÚNICAMENTE con JSON válido:
+IMPORTANTE: Respondé ÚNICAMENTE con un objeto JSON válido, sin texto adicional antes ni después:
 {{
   "relevante": true/false,
   "score": 1-10,
   "categoria": "reloj|militaria|plata|monedas|mueble|porcelana|bronce|radio|otro",
   "razon": "frase corta explicando el potencial de negocio",
-  "mensaje_wa": "mensaje WhatsApp listo para enviar (vacío si no es relevante)"
+  "mensaje_wa": "mensaje WhatsApp listo para enviar (string vacío si no es relevante)"
 }}
 
 Reglas mensaje_wa:
@@ -91,18 +107,17 @@ Reglas mensaje_wa:
 """
 
 def analizar_listado(item: dict) -> dict:
-    prompt = f"""Analizá este listado:
+    prompt = f"""Analizá este listado y respondé solo con JSON:
 
 Fuente: {item.get('fuente')}
 Tipo: {item.get('tipo')} ({'alguien vende, JC puede comprar' if item.get('tipo')=='vendedor' else 'alguien busca comprar, JC puede venderle'})
 Título: {item.get('titulo')}
 Precio: {item.get('precio')} {item.get('moneda','')}
 Ubicación: {item.get('ubicacion','')}
-Datos: {item.get('raw','')}
-
-Respondé solo con el JSON."""
+Datos: {item.get('raw','')}"""
 
     try:
+        # ### CAMBIO AQUÍ ### — sin response_format (no disponible en free tier)
         resp = client.chat.completions.create(
             model=_detectar_modelo(),
             messages=[
@@ -110,12 +125,14 @@ Respondé solo con el JSON."""
                 {"role":"user","content":prompt},
             ],
             temperature=0.2, max_tokens=600,
-            response_format={"type":"json_object"},
         )
-        analisis = json.loads(resp.choices[0].message.content)
+        texto = resp.choices[0].message.content or ""
+        analisis = _extraer_json(texto)
+        if not analisis:
+            raise ValueError(f"JSON no encontrado en: {texto[:100]}")
         item.update({
-            "relevante": analisis.get("relevante", False),
-            "score":     analisis.get("score", 0),
+            "relevante": bool(analisis.get("relevante", False)),
+            "score":     int(analisis.get("score", 0)),
             "categoria": analisis.get("categoria", "otro"),
             "razon":     analisis.get("razon", ""),
             "mensaje_wa":analisis.get("mensaje_wa", ""),
