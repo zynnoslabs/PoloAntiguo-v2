@@ -11,46 +11,45 @@ log = logging.getLogger("analizador")
 client = Groq(api_key=os.environ.get("GROQ_API_KEY",""))
 
 _MODELO_CACHE = None
+# ### CAMBIO AQUÍ ### — modelos actualizados, más confiables primero
 _MODELOS = [
-    "gemma2-9b-it",
-    "llama3-8b-8192",
-    "llama-3.2-3b-preview",
-    "mixtral-8x7b-32768",
-    "qwen-qwq-32b",
-    "openai/gpt-oss-20b",
-    "llama-3.3-70b-versatile",
+    "llama-3.3-70b-versatile",   # principal — más estable
+    "llama-3.1-8b-instant",      # rápido, fallback
+    "llama3-70b-8192",           # legacy pero funciona
+    "gemma2-9b-it",              # alternativa
+    "mixtral-8x7b-32768",        # alternativa
 ]
 
 def _detectar_modelo() -> str:
     global _MODELO_CACHE
     if _MODELO_CACHE:
         return _MODELO_CACHE
+    # ### CAMBIO AQUÍ ### — env var override (configurable desde Render)
     override = os.environ.get("GROQ_MODEL","")
     if override:
         _MODELO_CACHE = override
         log.info(f"Modelo (env): {override}")
         return override
+    # ### CAMBIO AQUÍ ### — probe sin response_format para no fallar por JSON vacío
     for m in _MODELOS:
         try:
-            client.chat.completions.create(
+            resp = client.chat.completions.create(
                 model=m,
-                messages=[{"role":"user","content":'Responde exactamente: {"ok":true}'}],
-                max_tokens=50, temperature=0,
-                response_format={"type":"json_object"},
+                messages=[{"role":"user","content":"Respondé solo: OK"}],
+                max_tokens=10, temperature=0,
             )
-            _MODELO_CACHE = m
-            log.info(f"Modelo activo: {m}")
-            return m
+            texto = resp.choices[0].message.content or ""
+            if texto.strip():          # cualquier respuesta no vacía = modelo OK
+                _MODELO_CACHE = m
+                log.info(f"Modelo activo: {m}")
+                return m
         except Exception as e:
             err = str(e).lower()
-            if any(k in err for k in ["model_not_found","404","decommissioned","not found","json_validate_failed"]):
-                log.warning(f"Modelo no disponible: {m}")
-                continue
-            _MODELO_CACHE = m
-            log.warning(f"Modelo (error no-fatal): {m}")
-            return m
+            log.warning(f"Modelo no disponible: {m} — {err[:80]}")
+            continue
+    # fallback final
     _MODELO_CACHE = _MODELOS[0]
-    log.error("Ningun modelo disponible. Configura GROQ_MODEL en Render.")
+    log.error("Ningún modelo respondió. Configura GROQ_MODEL en Render.")
     return _MODELO_CACHE
 
 PERFIL = """
