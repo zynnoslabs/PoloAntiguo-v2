@@ -100,8 +100,30 @@ function correrCiclo() {
     });
 }
 
+// ─── Reloj animado (logo) ─────────────────────────────────────────────────────
+// ### CAMBIO AQUÍ ### — mueve las agujas del reloj SVG con la hora real
+function tickReloj() {
+  const now = new Date();
+  const s = now.getSeconds();
+  const m = now.getMinutes() + s / 60;
+  const h = (now.getHours() % 12) + m / 60;
+  const cx = 16, cy = 21;   // centro geométrico del watch face en el SVG
+
+  const rotar = (id, deg) => {
+    const el = document.getElementById(id);
+    if (el) el.setAttribute('transform', `rotate(${deg}, ${cx}, ${cy})`);
+  };
+
+  rotar('watch-second', s * 6);
+  rotar('watch-minute', m * 6);
+  rotar('watch-hour',   h * 30);
+}
+
 // ─── Init ────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  // Arrancar reloj inmediatamente y luego cada segundo
+  tickReloj();
+  setInterval(tickReloj, 1000);
   // Activar filtros con pills existentes
   document.querySelectorAll('.pill').forEach(p => {
     p.addEventListener('click', () => activarFiltro(p));

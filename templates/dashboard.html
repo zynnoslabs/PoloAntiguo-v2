@@ -5,8 +5,35 @@
 <header class="site-header">
   <div class="header-inner">
     <div class="brand">
-      <span class="brand-name">Polo Antiguo</span>
-      <span class="brand-sub">radar de oportunidades</span>
+      <!-- ### CAMBIO AQUÍ ### — reloj de bolsillo SVG animado con hora real -->
+      <div class="logo-watch-wrap">
+        <svg class="logo-watch" viewBox="0 0 32 38" xmlns="http://www.w3.org/2000/svg">
+          <rect x="13.5" y="0" width="5" height="4.5" rx="0.8" fill="#8B6914" opacity="0.85"/>
+          <circle cx="16" cy="21" r="14.5" fill="#100D0B" stroke="#8B6914" stroke-width="1.2"/>
+          <circle cx="16" cy="21" r="12" fill="none" stroke="#8B6914" stroke-width="0.4" opacity="0.45"/>
+          <line x1="16" y1="8"  x2="16" y2="11" stroke="#CEC8BC" stroke-width="1.4" stroke-linecap="round"/>
+          <line x1="29" y1="21" x2="26" y2="21" stroke="#CEC8BC" stroke-width="1.4" stroke-linecap="round"/>
+          <line x1="16" y1="34" x2="16" y2="31" stroke="#CEC8BC" stroke-width="1.4" stroke-linecap="round"/>
+          <line x1="3"  y1="21" x2="6"  y2="21" stroke="#CEC8BC" stroke-width="1.4" stroke-linecap="round"/>
+          <line x1="23.5" y1="10.5" x2="22.5" y2="12.2" stroke="#3A3530" stroke-width="0.7"/>
+          <line x1="27.5" y1="14.5" x2="25.8" y2="15.5" stroke="#3A3530" stroke-width="0.7"/>
+          <line x1="27.5" y1="27.5" x2="25.8" y2="26.5" stroke="#3A3530" stroke-width="0.7"/>
+          <line x1="23.5" y1="31.5" x2="22.5" y2="29.8" stroke="#3A3530" stroke-width="0.7"/>
+          <line x1="8.5"  y1="31.5" x2="9.5"  y2="29.8" stroke="#3A3530" stroke-width="0.7"/>
+          <line x1="4.5"  y1="27.5" x2="6.2"  y2="26.5" stroke="#3A3530" stroke-width="0.7"/>
+          <line x1="4.5"  y1="14.5" x2="6.2"  y2="15.5" stroke="#3A3530" stroke-width="0.7"/>
+          <line x1="8.5"  y1="10.5" x2="9.5"  y2="12.2" stroke="#3A3530" stroke-width="0.7"/>
+          <line id="watch-hour"   x1="16" y1="21" x2="16" y2="14.5" stroke="#ECEAE2" stroke-width="1.9" stroke-linecap="round"/>
+          <line id="watch-minute" x1="16" y1="21" x2="16" y2="10"   stroke="#ECEAE2" stroke-width="1.1" stroke-linecap="round"/>
+          <line id="watch-second" x1="16" y1="24" x2="16" y2="9"    stroke="#7B2D1A" stroke-width="0.75" stroke-linecap="round"/>
+          <circle cx="16" cy="21" r="1.9" fill="#8B6914"/>
+          <circle cx="16" cy="21" r="0.75" fill="#100D0B"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <span class="brand-name">Polo Antiguo</span>
+        <span class="brand-sub">radar de oportunidades</span>
+      </div>
     </div>
     <div class="header-meta">
       {% if oportunidades_count > 0 %}
