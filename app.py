@@ -24,12 +24,12 @@ def _ciclo():
         log.error(f"Error en ciclo automático: {e}")
 
 scheduler = BackgroundScheduler()
-scheduler.add_job(_ciclo, "interval", hours=6, id="ciclo_polo", misfire_grace_time=300)
+scheduler.add_job(_ciclo, "interval", minutes=45,  ### CAMBIO AQUI ### 6h -> 45min: busca todo el dia id="ciclo_polo", misfire_grace_time=300)
 scheduler.start()
 atexit.register(lambda: scheduler.shutdown())
 
 # ─── Helpers DB ───────────────────────────────────────────────────────────────
-CATEGORIAS = ["reloj","militaria","plata","monedas","mueble","porcelana","bronce","radio","otro"]
+CATEGORIAS = ["reloj","militaria","plata","monedas","mueble","porcelana","bronce","radio","nautica","arte","iluminacion","otro"]  ### CAMBIO AQUI ###
 
 def get_listados(tipo=None, categoria=None, solo_relevantes=True, limite=150):
     con = get_con()

@@ -112,6 +112,10 @@ Compra y vende:
 - Porcelana y cristalería fina (Meissen, Limoges, Baccarat)
 - Bronce decorativo, mármol, objetos de arte
 - Radios, gramófonos, vitrolas (anteriores a 1950)
+- Náutica antigua: brújulas, sextantes, cronómetros marinos, instrumentos de navegación
+- Arte antiguo: pinturas, esculturas en bronce y mármol, objetos decorativos de arte
+- Iluminación antigua: lámparas art nouveau, arañas de cristal, apliques
+- Joyería antigua: collares, pulseras, broches en plata u oro (anteriores a 1950)
 Precio mínimo: $5.000 ARS o equivalente USD.
 Mercados: Argentina, Sudamérica, España, USA (piezas muy valiosas).
 """
@@ -125,7 +129,7 @@ IMPORTANTE: Respondé ÚNICAMENTE con un objeto JSON válido, sin texto adiciona
 {{
   "relevante": true/false,
   "score": 1-10,
-  "categoria": "reloj|militaria|plata|monedas|mueble|porcelana|bronce|radio|otro",
+  "categoria": "reloj|militaria|plata|monedas|mueble|porcelana|bronce|radio|nautica|arte|iluminacion|joyeria|otro",
   "razon": "frase corta explicando el potencial de negocio",
   "mensaje_wa": "mensaje WhatsApp listo para enviar (string vacío si no es relevante)"
 }}
