@@ -24,7 +24,7 @@ def _ciclo():
         log.error(f"Error en ciclo automático: {e}")
 
 scheduler = BackgroundScheduler()
-scheduler.add_job(_ciclo, "interval", minutes=45,  ### CAMBIO AQUI ### 6h -> 45min: busca todo el dia id="ciclo_polo", misfire_grace_time=300)
+scheduler.add_job(_ciclo, "interval", minutes=45, id="ciclo_polo", misfire_grace_time=300)  # 6h -> 45min: busca todo el dia
 scheduler.start()
 atexit.register(lambda: scheduler.shutdown())
 
