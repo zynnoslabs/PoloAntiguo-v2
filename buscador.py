@@ -121,7 +121,7 @@ def fetch_duckduckgo(con) -> list[dict]:
     queries_ciclo = [QUERIES_DDG[i] for i in indices]
 
     resultados = []
-    ddgs = DDGS()
+    ddgs = DDGS(impersonate=None)  # ### CAMBIO AQUÍ ### curl_cffi en Render no tiene safari_17.5 → None desactiva impersonación
 
     for kw, region, tipo_forzado in queries_ciclo:
         try:
