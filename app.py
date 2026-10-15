@@ -79,7 +79,7 @@ def get_stats():
 # ─── Variables de entorno para la tabla admin ─────────────────────────────────
 ENV_VARS_INFO = [
     ("GROQ_API_KEY",   "API key de Groq (análisis con IA)"),
-    ("BRAVE_API_KEY",  "API key de Brave Search (api.search.brave.com/app/keys) — gratis 2000/mes"),  # ### CAMBIO AQUÍ ###
+    # Sin variables extra — ML web scraping no requiere auth
     ("EMAIL_FROM",     "Cuenta Gmail para enviar resúmenes"),
     ("EMAIL_PASS",     "Contraseña de aplicación Gmail"),
     ("EMAIL_TO",       "Destinatario del resumen por email"),
