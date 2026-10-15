@@ -79,8 +79,8 @@ def get_stats():
 # ─── Variables de entorno para la tabla admin ─────────────────────────────────
 ENV_VARS_INFO = [
     ("GROQ_API_KEY",   "API key de Groq (análisis con IA)"),
-    ("SERPAPI_KEY",    "API key de SerpApi (búsquedas web)"),
-    ("EBAY_APP_ID",    "App ID de eBay Finding API (opcional)"),
+    ("ML_CLIENT_ID",    "App ID de MercadoLibre (developers.mercadolibre.com.ar)"),  # ### CAMBIO AQUÍ ###
+    ("ML_CLIENT_SECRET", "Secret Key de MercadoLibre (developers.mercadolibre.com.ar)"),  # ### CAMBIO AQUÍ ###
     ("EMAIL_FROM",     "Cuenta Gmail para enviar resúmenes"),
     ("EMAIL_PASS",     "Contraseña de aplicación Gmail"),
     ("EMAIL_TO",       "Destinatario del resumen por email"),
