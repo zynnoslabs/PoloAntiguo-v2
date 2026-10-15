@@ -144,6 +144,11 @@ def admin():
     env_vars = get_env_vars()
     return render_template("admin.html", stats=stats, env_vars=env_vars)
 
+@app.route("/api/stats")
+def api_stats():
+    """Polling del frontend para saber cuándo terminó el ciclo manual."""  # ### CAMBIO AQUÍ ###
+    return jsonify(get_stats())
+
 @app.route("/logout")
 def logout():
     session.clear()

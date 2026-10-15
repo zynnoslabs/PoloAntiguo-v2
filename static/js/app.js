@@ -82,19 +82,63 @@ function aplicarFiltros() {
 }
 
 // ─── Correr ciclo manual (admin) ─────────────────────────────────────────────
+// ### CAMBIO AQUÍ ### timer visible + polling hasta que lleguen resultados
 function correrCiclo() {
-  const btn = document.getElementById('btn-ciclo');
+  const btn  = document.getElementById('btn-ciclo');
+  const info = document.getElementById('ciclo-status');
   if (!btn) return;
+
   btn.disabled = true;
-  btn.textContent = 'Buscando…';
+  btn.textContent = '⏳ Buscando…';
+
+  let segundos = 0;
+  let serpBase = null;
+  let polling  = null;
+
+  // Capturar el valor base antes de lanzar
+  fetch('/api/stats').then(r => r.json()).then(s => {
+    serpBase = s.serp_hoy || 0;
+  }).catch(() => { serpBase = 0; });
+
+  // Timer visible cada 1 segundo
+  const timer = setInterval(() => {
+    segundos++;
+    const mm = String(Math.floor(segundos / 60)).padStart(2, '0');
+    const ss = String(segundos % 60).padStart(2, '0');
+    btn.textContent = '⏳ ' + mm + ':' + ss;
+    if (info) {
+      if (segundos < 30)       info.textContent = 'Consultando DuckDuckGo…';
+      else if (segundos < 90)  info.textContent = 'IA analizando resultados con Groq…';
+      else                     info.textContent = 'Guardando en base de datos…';
+    }
+    if (segundos >= 300) {
+      clearInterval(timer);
+      if (polling) clearInterval(polling);
+      if (info) info.textContent = 'Tardó mucho — recargando igual.';
+      setTimeout(() => location.reload(), 1500);
+    }
+  }, 1000);
+
+  // Lanzar el ciclo
   fetch('/api/correr-ciclo', { method: 'POST' })
     .then(r => r.json())
-    .then(d => {
-      showToast(`Ciclo lanzado — ${d.nuevos || 0} nuevos resultados`);
-      setTimeout(() => location.reload(), 3500);
+    .then(() => {
+      // Polling cada 15s hasta detectar que terminó
+      polling = setInterval(() => {
+        fetch('/api/stats').then(r => r.json()).then(s => {
+          if (serpBase !== null && s.serp_hoy > serpBase) {
+            clearInterval(timer);
+            clearInterval(polling);
+            btn.textContent = '✓ ¡Listo!';
+            if (info) info.textContent = 'Ciclo terminado — ' + s.serp_hoy + ' búsquedas hoy. Recargando…';
+            setTimeout(() => location.reload(), 2000);
+          }
+        }).catch(() => {});
+      }, 15000);
     })
     .catch(() => {
-      showToast('Error al lanzar ciclo');
+      clearInterval(timer);
+      if (info) info.textContent = 'Error al conectar con el servidor.';
       btn.disabled = false;
       btn.textContent = 'Correr ciclo ahora';
     });
