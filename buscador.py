@@ -121,11 +121,13 @@ def fetch_duckduckgo(con) -> list[dict]:
     queries_ciclo = [QUERIES_DDG[i] for i in indices]
 
     resultados = []
-    ddgs = DDGS()  # ### CAMBIO AQUÍ ### v5.x: requests puro, sin curl_cffi, sin impersonación
+    # ### CAMBIO AQUÍ ### instancia nueva por query: evita el "Exception occurred in previous call"
+    # que propaga el error de una query a todas las siguientes en la misma sesión
 
     for kw, region, tipo_forzado in queries_ciclo:
         try:
-            hits = ddgs.text(kw, region=region, max_results=10) or []
+            with DDGS(timeout=20) as ddgs:  # timeout=20s, instancia fresca cada vez
+                hits = ddgs.text(kw, region=region, max_results=10) or []
             for res in hits:
                 url_res = res.get("href", "")
                 lid = f"ddg_{abs(hash(url_res + kw))}"
