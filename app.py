@@ -24,7 +24,7 @@ def _ciclo():
         log.error(f"Error en ciclo automático: {e}")
 
 scheduler = BackgroundScheduler()
-scheduler.add_job(_ciclo, "interval", minutes=45, id="ciclo_polo", misfire_grace_time=300)  # 6h -> 45min: busca todo el dia
+scheduler.add_job(_ciclo, "interval", minutes=90, id="ciclo_polo", misfire_grace_time=300)  # ### CAMBIO AQUÍ ### 90min: 4 queries×16 ciclos=64/día < límite Brave
 scheduler.start()
 atexit.register(lambda: scheduler.shutdown())
 
@@ -79,8 +79,7 @@ def get_stats():
 # ─── Variables de entorno para la tabla admin ─────────────────────────────────
 ENV_VARS_INFO = [
     ("GROQ_API_KEY",   "API key de Groq (análisis con IA)"),
-    ("ML_CLIENT_ID",    "App ID de MercadoLibre (developers.mercadolibre.com.ar)"),  # ### CAMBIO AQUÍ ###
-    ("ML_CLIENT_SECRET", "Secret Key de MercadoLibre (developers.mercadolibre.com.ar)"),  # ### CAMBIO AQUÍ ###
+    ("BRAVE_API_KEY",  "API key de Brave Search (api.search.brave.com/app/keys) — gratis 2000/mes"),  # ### CAMBIO AQUÍ ###
     ("EMAIL_FROM",     "Cuenta Gmail para enviar resúmenes"),
     ("EMAIL_PASS",     "Contraseña de aplicación Gmail"),
     ("EMAIL_TO",       "Destinatario del resumen por email"),

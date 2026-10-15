@@ -1,8 +1,9 @@
 """
 buscador.py — Polo Antiguo v2
-Fuente: MercadoLibre API (OAuth Client Credentials — app gratuita).
-~32 queries cubriendo todas las categorías. Rota 8 por ciclo.
-Requiere: ML_CLIENT_ID y ML_CLIENT_SECRET en variables de entorno Render.
+Fuente: Brave Search API (gratuita, 2000 búsquedas/mes, sin restricciones de IP).
+Requiere: BRAVE_API_KEY en variables de entorno Render.
+Obtené la clave gratis en: https://api.search.brave.com/app/keys
+4 queries × ciclo de 90min → rotación completa ~11 horas.
 """
 import os, json, time, logging, requests
 from datetime import datetime, timezone
@@ -11,175 +12,126 @@ from db import get_con, es_nuevo, marcar_visto
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("buscador")
 
-ML_TOKEN_URL  = "https://api.mercadolibre.com/oauth/token"
-ML_SEARCH_URL = "https://api.mercadolibre.com/sites/{site}/search"
+BRAVE_URL = "https://api.search.brave.com/res/v1/web/search"
 
-# Cache del token en memoria (expira cada ~6h, ML lo renueva automático)
-_ml_token: str | None = None
-_ml_token_expires: float = 0.0
-
-
-def _get_ml_token() -> str | None:
-    """Obtiene o renueva el access token de MercadoLibre."""
-    global _ml_token, _ml_token_expires
-    if _ml_token and time.time() < _ml_token_expires - 300:
-        return _ml_token
-    cid     = os.environ.get("ML_CLIENT_ID", "")
-    csecret = os.environ.get("ML_CLIENT_SECRET", "")
-    if not cid or not csecret:
-        log.error("ML_CLIENT_ID / ML_CLIENT_SECRET no configurados en Render.")
-        return None
-    try:
-        r = requests.post(
-            ML_TOKEN_URL,
-            data={
-                "grant_type":    "client_credentials",
-                "client_id":     cid,
-                "client_secret": csecret,
-            },
-            timeout=15,
-        )
-        r.raise_for_status()
-        data = r.json()
-        _ml_token         = data["access_token"]
-        _ml_token_expires = time.time() + data.get("expires_in", 21600)
-        log.info("ML token renovado OK")
-        return _ml_token
-    except Exception as e:
-        log.error(f"Error obteniendo ML token: {e}")
-        return None
-
-
-# ### CAMBIO AQUÍ ### 32 queries MercadoLibre Argentina + España
-QUERIES_ML = [
+# ### CAMBIO AQUÍ ### 30 queries para Brave Search — cubre todas las categorías
+QUERIES = [
     # ═══ RELOJES Y JOYERÍA ═══
-    ("reloj longines antiguo bolsillo",          "MLA", "reloj"),
-    ("reloj omega antiguo bolsillo",             "MLA", "reloj"),
-    ("reloj suizo antiguo pulsera",              "MLA", "reloj"),
-    ("reloj de bolsillo antiguo coleccion",      "MLA", "reloj"),
-    ("reloj iwc vacheron antiguo",               "MLA", "reloj"),
-    ("joyeria plata antigua collar pulsera",     "MLA", "joyeria"),
-
+    ("heredé reloj longines antiguo vendo argentina",          "herencia"),
+    ("vendo reloj de bolsillo suizo antiguo argentina",        "vendedor"),
+    ("busco comprar reloj longines bolsillo antiguo argentina","comprador"),
+    ("tasación reloj antiguo longines omega buenos aires",     "tasacion"),
+    ("remate reloj antiguo colección buenos aires",            "remate"),
+    ("vendo joyería plata antigua collares pulseras argentina","vendedor"),
     # ═══ MILITARIA ═══
-    ("sable militar antiguo argentina",          "MLA", "militaria"),
-    ("militaria condecoracion medalla antigua",  "MLA", "militaria"),
-    ("pistola antigua ejercito argentino",       "MLA", "militaria"),
-    ("uniforme militar antiguo",                 "MLA", "militaria"),
-
+    ("heredé sable militar antiguo argentina vendo",           "herencia"),
+    ("vendo militaria pistola antigua ejército argentino",     "vendedor"),
+    ("busco militaria sable argentino siglo xix colección",    "comprador"),
+    ("condecoración medalla militar antigua argentina vendo",  "vendedor"),
     # ═══ PLATERÍA ═══
-    ("mate plata antiguo",                       "MLA", "plata"),
-    ("plateria criolla bombilla plata",          "MLA", "plata"),
-    ("cubiertos plata antigua",                  "MLA", "plata"),
-    ("candelabro plata antiguo",                 "MLA", "plata"),
-
+    ("heredé mate de plata antiguo vendo argentina",           "herencia"),
+    ("vendo platería criolla mate bombilla plata",             "vendedor"),
+    ("cubiertos plata antigua vendo argentina",                "vendedor"),
+    ("compro platería criolla argentina piezas antiguas",      "comprador"),
     # ═══ AUDIO ═══
-    ("radio valvulas antigua",                   "MLA", "radio"),
-    ("gramofono antiguo vitrola",                "MLA", "radio"),
-    ("fonografo antiguo",                        "MLA", "radio"),
-
+    ("vendo radio antigua válvulas argentina",                 "vendedor"),
+    ("heredé gramófono vitrola antiguo vendo argentina",       "herencia"),
+    ("busco radio antigua válvulas coleccionista argentina",   "comprador"),
     # ═══ NÁUTICA ═══
-    ("brujula nautica antigua",                  "MLA", "nautica"),
-    ("sextante antiguo",                         "MLA", "nautica"),
-    ("cronometro marino antiguo",                "MLA", "nautica"),
-
-    # ═══ ARTE Y BRONCE ═══
-    ("bronce decorativo antiguo figura",         "MLA", "arte"),
-    ("escultura marmol antigua",                 "MLA", "arte"),
-    ("cuadro pintura antigua firma",             "MLA", "arte"),
-
+    ("vendo brújula náutica antigua argentina",                "vendedor"),
+    ("sextante antiguo vendo argentina colección",             "vendedor"),
+    # ═══ ARTE ═══
+    ("bronce decorativo antiguo vendo argentina",              "vendedor"),
+    ("cuadro pintura antigua argentina vendo",                 "vendedor"),
+    ("heredé objetos arte antiguo vendo sucesión argentina",   "herencia"),
     # ═══ MUEBLES E ILUMINACIÓN ═══
-    ("mueble antiguo luis xv estilo europeo",    "MLA", "mueble"),
-    ("lampara art nouveau antigua",              "MLA", "iluminacion"),
-    ("arana cristal antigua",                    "MLA", "iluminacion"),
-
+    ("vendo mueble antiguo luis xv xvi buenos aires",          "vendedor"),
+    ("lámpara antigua art nouveau art deco vendo argentina",   "vendedor"),
+    ("araña cristal antigua vendo argentina",                  "vendedor"),
     # ═══ NUMISMÁTICA ═══
-    ("monedas argentinas antiguas coleccion",    "MLA", "monedas"),
-    ("billetes antiguos argentina",              "MLA", "monedas"),
-
-    # ═══ PORCELANA ═══
-    ("porcelana meissen limoges antigua",        "MLA", "porcelana"),
-    ("cristal baccarat antiguo",                 "MLA", "porcelana"),
-
-    # ═══ EXTRAS ESPAÑA ═══
-    ("reloj longines antiguo bolsillo",          "MLE", "reloj"),
-    ("militaria antigua sable espada coleccion", "MLE", "militaria"),
+    ("vendo monedas argentinas antiguas colección",            "vendedor"),
+    ("billetes antiguos argentina vendo coleccionista",        "vendedor"),
+    ("heredé colección monedas billetes antiguos argentina",   "herencia"),
+    # ═══ HERENCIA / REMATE GENÉRICO ═══
+    ("heredé contenido casa antigua vendo todo argentina",     "herencia"),
+    ("sucesión vendo antigüedades muebles plata argentina",    "herencia"),
 ]
 
-QUERIES_POR_CICLO = 8
+QUERIES_POR_CICLO = 4   # 4 queries × 16 ciclos/día (90min) = 64/día = 1920/mes < 2000 gratis
 
 
-def fetch_mercadolibre(con) -> list[dict]:
-    token = _get_ml_token()
-    if not token:
-        log.warning("Sin token ML — saltando ciclo.")
+def fetch_brave(con) -> list[dict]:
+    api_key = os.environ.get("BRAVE_API_KEY", "")
+    if not api_key:
+        log.error("BRAVE_API_KEY no configurada en Render. Ver https://api.search.brave.com/app/keys")
         return []
 
-    headers = {"Authorization": f"Bearer {token}"}
-    sess = requests.Session()
-    sess.headers.update(headers)
-
-    # Calcular rotación
     row = con.execute("SELECT COALESCE(SUM(cantidad), 0) FROM serp_uso").fetchone()
     total_ciclos = row[0] or 0
-    n = len(QUERIES_ML)
+    n = len(QUERIES)
     inicio = (total_ciclos * QUERIES_POR_CICLO) % n
     indices = [(inicio + i) % n for i in range(QUERIES_POR_CICLO)]
-    queries_ciclo = [QUERIES_ML[i] for i in indices]
+    queries_ciclo = [QUERIES[i] for i in indices]
 
     resultados = []
-    for kw, site, cat_hint in queries_ciclo:
-        try:
-            params = {"q": kw, "limit": 20}
-            if site == "MLA":
-                params["condition"] = "used"
-            r = sess.get(ML_SEARCH_URL.format(site=site), params=params, timeout=15)
-            r.raise_for_status()
-            items = r.json().get("results", [])
+    sess = requests.Session()
+    sess.headers.update({
+        "X-Subscription-Token": api_key,
+        "Accept": "application/json",
+        "Accept-Encoding": "gzip",
+    })
 
-            nuevos_query = 0
-            for item in items:
-                ml_id = item.get("id", "")
-                lid = f"ml_{ml_id}"
-                if not ml_id or not es_nuevo(con, lid, "mercadolibre"):
+    for kw, tipo_forzado in queries_ciclo:
+        try:
+            r = sess.get(BRAVE_URL, params={
+                "q": kw, "count": 10,
+                "search_lang": "es", "country": "AR",
+                "freshness": "pw",   # última semana
+            }, timeout=15)
+            r.raise_for_status()
+            hits = r.json().get("web", {}).get("results", [])
+
+            nuevos = 0
+            for res in hits:
+                url_res = res.get("url", "")
+                lid = f"brave_{abs(hash(url_res + kw))}"
+                if not url_res or not es_nuevo(con, lid, "brave"):
                     continue
-                marcar_visto(con, lid, "mercadolibre")
-                precio    = item.get("price")
-                moneda    = item.get("currency_id", "ARS")
-                ubicacion = (item.get("seller_address") or {}).get("state", {}).get("name", "")
+                marcar_visto(con, lid, "brave")
                 resultados.append({
                     "id":        lid,
-                    "fuente":    "MercadoLibre",
-                    "tipo":      "vendedor",
-                    "titulo":    item.get("title", ""),
-                    "precio":    precio,
-                    "moneda":    moneda,
-                    "url":       item.get("permalink", ""),
-                    "imagen":    item.get("thumbnail", ""),
-                    "ubicacion": ubicacion,
+                    "fuente":    "Web",
+                    "tipo":      tipo_forzado,
+                    "titulo":    res.get("title", ""),
+                    "precio":    None,
+                    "moneda":    "ARS",
+                    "url":       url_res,
+                    "imagen":    "",
+                    "ubicacion": "AR",
                     "keyword":   kw,
                     "raw":       json.dumps({
-                        "title": item.get("title"), "price": precio,
-                        "currency": moneda, "url": item.get("permalink"),
-                        "ubicacion": ubicacion, "site": site,
+                        "title":       res.get("title"),
+                        "description": res.get("description", "")[:300],
+                        "url":         url_res,
+                        "tipo":        tipo_forzado,
                     }, ensure_ascii=False)[:600],
                 })
-                nuevos_query += 1
+                nuevos += 1
 
-            log.info(f"ML [{site}] '{kw}': {len(items)} items, {nuevos_query} nuevos")
+            log.info(f"Brave '{kw[:40]}': {len(hits)} hits, {nuevos} nuevos")
             time.sleep(1.0)
 
         except Exception as e:
-            log.warning(f"ML '{kw}': {e}")
+            log.warning(f"Brave '{kw[:40]}': {e}")
             time.sleep(2.0)
 
-    # Registrar ciclo
     hoy = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     con.execute("""
         INSERT INTO serp_uso(fecha, cantidad) VALUES(?, 1)
         ON CONFLICT(fecha) DO UPDATE SET cantidad = cantidad + 1
     """, (hoy,))
     con.commit()
-    log.info(f"ML total nuevos: {len(resultados)} (queries {inicio}–{(inicio + QUERIES_POR_CICLO - 1) % n} de {n})")
+    log.info(f"Brave total nuevos: {len(resultados)} (queries {inicio}–{(inicio+QUERIES_POR_CICLO-1)%n} de {n})")
     return resultados
 
 
@@ -187,7 +139,7 @@ def buscar_todo() -> list[dict]:
     from db import init_db
     init_db()
     con = get_con()
-    todos = fetch_mercadolibre(con)
+    todos = fetch_brave(con)
     con.close()
     return todos
 
