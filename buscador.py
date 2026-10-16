@@ -2,22 +2,20 @@
 buscador.py — Polo Antiguo v2
 
 Fuentes (en orden de prioridad):
-  1. MercadoLibre API  — listings reales con precio.  Requiere cuenta ML gratis:
-       - Registrar app en https://developers.mercadolibre.com.ar
-       - Agregar MELI_CLIENT_ID y MELI_CLIENT_SECRET en Render → Environment
-       - Sin esas vars, ML queda deshabilitado sin error.
-  2. Google News RSS   — sin API key, sin cuota, siempre activo como respaldo.
-       - Encuentra artículos y posts; la IA filtra lo irrelevante.
+  1. MercadoLibre API   — listings reales con precio. Requiere MELI_CLIENT_ID + MELI_CLIENT_SECRET en Render.
+  2. Google Alerts RSS  — cubre TODO internet (foros, clasificados, blogs, redes). Requiere GALERTS_FEEDS en Render.
+  3. Google News RSS    — siempre activo como respaldo. Sin API key ni cuota.
 """
 import os, json, time, logging, requests
 import xml.etree.ElementTree as ET
+from urllib.parse import urlparse, parse_qs, unquote
 from datetime import datetime, timezone
 from db import get_con, es_nuevo, marcar_visto
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("buscador")
 
-ML_TOKEN_URL = "https://api.mercadolibre.com/oauth/token"
+ML_TOKEN_URL  = "https://api.mercadolibre.com/oauth/token"
 ML_SEARCH_URL = "https://api.mercadolibre.com/sites/MLA/search"
 GNEWS_URL     = "https://news.google.com/rss/search"
 
@@ -77,7 +75,6 @@ def _calcular_indices(con) -> tuple[list[int], int]:
 # ── MercadoLibre ──────────────────────────────────────────────────────────────
 
 def _ml_token(client_id: str, client_secret: str) -> str:
-    """Obtiene access_token via client_credentials (dura ~6 h)."""
     try:
         r = requests.post(ML_TOKEN_URL, data={
             "grant_type":    "client_credentials",
@@ -170,6 +167,105 @@ def fetch_ml(con, indices: list[int]) -> list[dict]:
     return resultados
 
 
+# ── Google Alerts RSS ─────────────────────────────────────────────────────────
+# ### CAMBIO AQUÍ ### — nueva fuente: Google Alerts cubre TODO internet, no solo noticias
+
+def _extraer_url_real(google_url: str) -> str:
+    """Google Alerts envuelve los links en un redirect — extrae la URL real."""
+    try:
+        params = parse_qs(urlparse(google_url).query)
+        real = params.get("url", [google_url])[0]
+        return unquote(real).split("?")[0].split("#")[0]
+    except Exception:
+        return google_url.split("?")[0]
+
+
+def _parsear_atom(content: bytes) -> list[tuple[str, str, str]]:
+    """Parsea feed Atom de Google Alerts → list de (titulo, url_real, resumen)."""
+    ns = {"a": "http://www.w3.org/2005/Atom"}
+    try:
+        root = ET.fromstring(content)
+    except ET.ParseError:
+        return []
+    entries = []
+    for entry in root.findall("a:entry", ns):
+        titulo = entry.findtext("a:title", "", ns)
+        link_el = entry.find("a:link", ns)
+        url_g   = link_el.get("href", "") if link_el is not None else ""
+        content_el = entry.find("a:content", ns)
+        resumen = (content_el.text or "") if content_el is not None else ""
+        if titulo and url_g:
+            entries.append((titulo, _extraer_url_real(url_g), resumen[:400]))
+    return entries
+
+
+def fetch_galerts(con) -> list[dict]:
+    """
+    Google Alerts RSS — activo si GALERTS_FEEDS está configurado en Render.
+    Valor: URLs de feeds RSS separadas por coma.
+    Cómo obtenerlas: google.com/alerts → crear alerta → activar 'Entregar como RSS'.
+    """
+    feeds_raw = os.environ.get("GALERTS_FEEDS", "").strip()
+    if not feeds_raw:
+        return []
+
+    feed_urls = [u.strip() for u in feeds_raw.split(",") if u.strip()]
+    if not feed_urls:
+        return []
+
+    sess = requests.Session()
+    sess.headers.update({
+        "User-Agent": "Mozilla/5.0 (compatible; PoloAntiguoBot/1.0)",
+        "Accept":     "application/atom+xml,application/xml,text/xml",
+    })
+    resultados = []
+
+    for feed_url in feed_urls:
+        etiqueta = feed_url[-24:]  # identificador corto para logs
+        try:
+            r = sess.get(feed_url, timeout=15)
+            r.raise_for_status()
+
+            entries = _parsear_atom(r.content)
+            nuevos  = 0
+
+            for titulo, url_real, resumen in entries:
+                if not url_real or not titulo:
+                    continue
+                lid = f"ga_{abs(hash(url_real))}"
+                if not es_nuevo(con, lid, "galerts"):
+                    continue
+                marcar_visto(con, lid, "galerts")
+                resultados.append({
+                    "id":        lid,
+                    "fuente":    "Web",
+                    "tipo":      "vendedor",
+                    "titulo":    titulo[:200],
+                    "precio":    None,
+                    "moneda":    "ARS",
+                    "url":       url_real,
+                    "imagen":    "",
+                    "ubicacion": "AR",
+                    "keyword":   f"galert:{etiqueta}",
+                    "raw":       json.dumps({
+                        "title":       titulo,
+                        "description": resumen,
+                        "url":         url_real,
+                        "tipo":        "vendedor",
+                    }, ensure_ascii=False)[:600],
+                })
+                nuevos += 1
+
+            log.info(f"GAlerts …{etiqueta}: {len(entries)} entradas, {nuevos} nuevas")
+            time.sleep(0.3)
+
+        except Exception as e:
+            log.warning(f"GAlerts error …{etiqueta}: {e}")
+            time.sleep(2.0)
+
+    return resultados
+
+
 # ── Google News RSS ───────────────────────────────────────────────────────────
 
 def fetch_gnews(con, indices: list[int]) -> list[dict]:
@@ -248,6 +344,7 @@ def buscar_todo() -> list[dict]:
     n = len(QUERIES)
 
     todos  = fetch_ml(con, indices)
+    todos += fetch_galerts(con)           # ### CAMBIO AQUÍ ### — Google Alerts primero que GNews
     todos += fetch_gnews(con, indices)
 
     hoy = datetime.now(timezone.utc).strftime("%Y-%m-%d")

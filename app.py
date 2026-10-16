@@ -82,6 +82,8 @@ ENV_VARS_INFO = [
     # ### CAMBIO AQUÍ ### — ML OAuth: registrar app gratis en developers.mercadolibre.com.ar
     ("MELI_CLIENT_ID",    "ML App ID (opcional — activa búsqueda en MercadoLibre)"),
     ("MELI_CLIENT_SECRET","ML Secret (opcional — activa búsqueda en MercadoLibre)"),
+    # ### CAMBIO AQUÍ ### — Google Alerts RSS: pegar URLs separadas por coma
+    ("GALERTS_FEEDS",    "URLs de Google Alerts RSS separadas por coma (opcional)"),
     ("EMAIL_FROM",        "Cuenta Gmail para enviar resúmenes"),
     ("EMAIL_PASS",     "Contraseña de aplicación Gmail"),
     ("EMAIL_TO",       "Destinatario del resumen por email"),
