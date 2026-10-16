@@ -78,9 +78,11 @@ def get_stats():
 
 # ─── Variables de entorno para la tabla admin ─────────────────────────────────
 ENV_VARS_INFO = [
-    ("GROQ_API_KEY",   "API key de Groq (análisis con IA)"),
-    # Sin variables extra — ML web scraping no requiere auth
-    ("EMAIL_FROM",     "Cuenta Gmail para enviar resúmenes"),
+    ("GROQ_API_KEY",      "API key de Groq (análisis con IA)"),
+    # ### CAMBIO AQUÍ ### — ML OAuth: registrar app gratis en developers.mercadolibre.com.ar
+    ("MELI_CLIENT_ID",    "ML App ID (opcional — activa búsqueda en MercadoLibre)"),
+    ("MELI_CLIENT_SECRET","ML Secret (opcional — activa búsqueda en MercadoLibre)"),
+    ("EMAIL_FROM",        "Cuenta Gmail para enviar resúmenes"),
     ("EMAIL_PASS",     "Contraseña de aplicación Gmail"),
     ("EMAIL_TO",       "Destinatario del resumen por email"),
     ("ADMIN_PASS",     "Contraseña del panel de admin"),
