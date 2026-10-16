@@ -1,9 +1,10 @@
 """
 db.py — Polo Antiguo v2
-Base de datos: PostgreSQL via Neon (psycopg2).
+Base de datos: PostgreSQL via Neon (pg8000 — pure Python).
 Conexión: variable de entorno DATABASE_URL.
 """
-import os, psycopg2, logging
+import os, pg8000.dbapi, logging
+from urllib.parse import urlparse
 from datetime import datetime, timezone
 
 log = logging.getLogger("db")
@@ -58,7 +59,7 @@ class _Con:
 
     def execute(self, sql: str, params=()):
         cur = self._conn.cursor()
-        cur.execute(sql.replace("?", "%s"), params)   # ### CAMBIO AQUÍ ### — ? → %s
+        cur.execute(sql.replace("?", "%s"), params)
         return _Cursor(cur)
 
     def executescript(self, script: str):
@@ -78,7 +79,16 @@ class _Con:
 def get_con() -> _Con:
     if not DATABASE_URL:
         raise RuntimeError("DATABASE_URL no configurada — agregala en Render → Environment.")
-    conn = psycopg2.connect(DATABASE_URL)
+    # ### CAMBIO AQUÍ ### — pg8000 (pure Python) reemplaza psycopg2 para compat con Python 3.14
+    r = urlparse(DATABASE_URL)
+    conn = pg8000.dbapi.connect(
+        host=r.hostname,
+        port=r.port or 5432,
+        database=r.path.lstrip("/"),
+        user=r.username,
+        password=r.password,
+        ssl_context=True,
+    )
     return _Con(conn)
 
 
@@ -132,7 +142,6 @@ def es_nuevo(con, listing_id: str, fuente: str) -> bool:
 def marcar_visto(con, listing_id: str, fuente: str):
     ahora = datetime.now(timezone.utc).isoformat()
     con.execute(
-        # ### CAMBIO AQUÍ ### — INSERT OR IGNORE → ON CONFLICT DO NOTHING (PostgreSQL)
         "INSERT INTO vistos(id,fuente,visto_en) VALUES(?,?,?) ON CONFLICT DO NOTHING",
         (listing_id, fuente, ahora)
     )
