@@ -160,18 +160,30 @@ Datos: {item.get('raw','')}"""
                 {"role":"system","content":SYSTEM_PROMPT},
                 {"role":"user","content":prompt},
             ],
-            temperature=0.2, max_tokens=600,
+            temperature=0.2, max_tokens=1000,  # ### CAMBIO AQUÍ ### — era 600, cortaba JSON
         )
-        texto = resp.choices[0].message.content or ""
-        # ### CAMBIO AQUÍ ### — modelo a veces devuelve string vacío; lo tratamos como no relevante
+        choice = resp.choices[0]
+        texto  = choice.message.content or ""
+        finish = getattr(choice, "finish_reason", "") or ""
+        # ### CAMBIO AQUÍ ### — si se cortó por length, intentamos parsear igual; sino descartamos
         if not texto.strip():
             item.update({"relevante": False, "score": 0, "categoria": "otro",
                          "razon": "Respuesta vacía del modelo", "mensaje_wa": ""})
             log.info(f"✗ [0/10] {item.get('titulo','')[:60]} (respuesta vacía)")
             return item
-        analisis = _extraer_json(texto)
-        if not analisis:
-            raise ValueError(f"JSON no parseable: {texto[:80]}")
+        if finish == "length":
+            log.warning(f"Groq cortó respuesta por length: '{item.get('titulo','')[:50]}'")
+            # intenta parsear lo que haya; si falla, descarta como no relevante
+            analisis = _extraer_json(texto)
+            if not analisis:
+                item.update({"relevante": False, "score": 0, "categoria": "otro",
+                             "razon": "Respuesta truncada (length)", "mensaje_wa": ""})
+                log.info(f"✗ [0/10] {item.get('titulo','')[:60]} (truncado)")
+                return item
+        else:
+            analisis = _extraer_json(texto)
+            if not analisis:
+                raise ValueError(f"JSON no parseable: {texto[:80]}")
         item.update({
             "relevante": bool(analisis.get("relevante", False)),
             "score":     int(analisis.get("score", 0)),
