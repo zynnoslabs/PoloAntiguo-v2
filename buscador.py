@@ -127,7 +127,11 @@ def fetch_google(con) -> list[dict]:
             time.sleep(0.5)
 
         except Exception as e:
-            log.warning(f"Google '{kw[:45]}': {e}")
+            try:
+                log.warning(f"Google CSE error body: {r.text[:300]}")
+            except:
+                pass
+            log.warning(f"Google error: {e}")
             time.sleep(2.0)
 
     hoy = datetime.now(timezone.utc).strftime("%Y-%m-%d")
