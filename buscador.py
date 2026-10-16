@@ -3,7 +3,7 @@ buscador.py — Polo Antiguo v2
 
 Fuentes (en orden de prioridad):
   1. MercadoLibre API   — listings reales con precio. Requiere MELI_CLIENT_ID + MELI_CLIENT_SECRET en Render.
-  2. Google Alerts RSS  — cubre TODO internet (foros, clasificados, blogs, redes). Requiere GALERTS_FEEDS en Render.
+  2. Google Alerts RSS  — cubre TODO internet (foros, clasificados, blogs, redes). Feeds hardcodeados.
   3. Google News RSS    — siempre activo como respaldo. Sin API key ni cuota.
 """
 import os, json, time, logging, requests
@@ -201,17 +201,19 @@ def _parsear_atom(content: bytes) -> list[tuple[str, str, str]]:
 
 def fetch_galerts(con) -> list[dict]:
     """
-    Google Alerts RSS — activo si GALERTS_FEEDS está configurado en Render.
-    Valor: URLs de feeds RSS separadas por coma.
-    Cómo obtenerlas: google.com/alerts → crear alerta → activar 'Entregar como RSS'.
+    Google Alerts RSS — feeds hardcodeados, sin API key ni env var.
+    Para agregar más: google.com/alerts → crear alerta → Feed RSS → copiar URL.
     """
-    feeds_raw = os.environ.get("GALERTS_FEEDS", "").strip()
-    if not feeds_raw:
-        return []
-
-    feed_urls = [u.strip() for u in feeds_raw.split(",") if u.strip()]
-    if not feed_urls:
-        return []
+    # ### CAMBIO AQUÍ ### — URLs hardcodeadas de Google Alerts (cuenta de Juan Carlos)
+    feed_urls = [
+        "https://www.google.com/alerts/feeds/16937435509913657934/2997517593880030220",   # relojes antiguos
+        "https://www.google.com/alerts/feeds/16937435509913657934/672431141407340296",    # platería mate plata
+        "https://www.google.com/alerts/feeds/16937435509913657934/16642881833514328863",  # militaria sable medalla
+        "https://www.google.com/alerts/feeds/16937435509913657934/16642881833514330505",  # muebles herencia
+        "https://www.google.com/alerts/feeds/16937435509913657934/4267203002127183104",   # joyería plata oro
+        "https://www.google.com/alerts/feeds/16937435509913657934/11316837389935247170",  # radio valvulas gramofono
+        "https://www.google.com/alerts/feeds/16937435509913657934/6815444251870625091",   # numismática monedas billetes
+    ]
 
     sess = requests.Session()
     sess.headers.update({
