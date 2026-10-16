@@ -78,6 +78,7 @@ def get_stats():
 
 # ─── Variables de entorno para la tabla admin ─────────────────────────────────
 ENV_VARS_INFO = [
+    ("DATABASE_URL",      "Connection string de Neon (PostgreSQL persistente)"),  # ### CAMBIO AQUÍ ###
     ("GROQ_API_KEY",      "API key de Groq (análisis con IA)"),
     # ### CAMBIO AQUÍ ### — ML OAuth: registrar app gratis en developers.mercadolibre.com.ar
     ("MELI_CLIENT_ID",    "ML App ID (opcional — activa búsqueda en MercadoLibre)"),
