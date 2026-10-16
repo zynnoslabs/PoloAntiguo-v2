@@ -1,19 +1,19 @@
 """
 buscador.py — Polo Antiguo v2
-Fuente: Google Custom Search API — funciona desde Render, 100 búsquedas/día gratis.
-Requiere 2 vars en Render: GOOGLE_CSE_KEY y GOOGLE_CSE_CX
-Ver instrucciones en /admin.
+Fuentes: MercadoLibre API pública (sin auth) + Google News RSS (sin API key).
+Ambas son gratuitas, sin tarjeta de crédito, accesibles desde Render.
 """
-import os, json, time, logging, requests
+import json, time, logging, requests
+import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from db import get_con, es_nuevo, marcar_visto
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("buscador")
 
-GOOGLE_URL = "https://www.googleapis.com/customsearch/v1"
+ML_URL    = "https://api.mercadolibre.com/sites/MLA/search"
+GNEWS_URL = "https://news.google.com/rss/search"
 
-# ### CAMBIO AQUÍ ### Queries naturales → Google encuentra ML, OLX, Clasificados, foros y más
 QUERIES = [
     # ═══ RELOJES — VENDEDORES ═══
     ("vendo reloj longines antiguo argentina",            "vendedor"),
@@ -54,55 +54,122 @@ QUERIES = [
     ("vendo billetes antiguos argentina coleccion",       "vendedor"),
     # ═══ LIQUIDACIONES / SUCESIONES ═══
     ("sucesion vendo antiguedades lote argentina",        "herencia"),
+    ("liquidacion antiguedades herencia argentina",       "herencia"),
 ]
 
-QUERIES_POR_CICLO = 4   # 4 × 16 ciclos/día = 64/día < 100 límite gratis
+QUERIES_POR_CICLO = 4   # ### CAMBIO AQUÍ ### 4 queries × 16 ciclos/día = 64 llamadas/día por fuente
 
 
-def fetch_google(con) -> list[dict]:
-    api_key = os.environ.get("GOOGLE_CSE_KEY", "")
-    cx      = os.environ.get("GOOGLE_CSE_CX", "")
-    if not api_key or not cx:
-        log.error("GOOGLE_CSE_KEY / GOOGLE_CSE_CX no configurados. Ir a /admin para ver instrucciones.")
-        return []
+def _calcular_indices(con) -> tuple[list[int], int]:
+    """Rotación circular: qué queries corren este ciclo."""
+    n     = len(QUERIES)
+    total = con.execute("SELECT COALESCE(SUM(cantidad), 0) FROM serp_uso").fetchone()[0] or 0
+    ini   = (total * QUERIES_POR_CICLO) % n
+    return [(ini + i) % n for i in range(QUERIES_POR_CICLO)], ini
 
-    row    = con.execute("SELECT COALESCE(SUM(cantidad), 0) FROM serp_uso").fetchone()
-    total  = row[0] or 0
-    n      = len(QUERIES)
-    inicio = (total * QUERIES_POR_CICLO) % n
-    indices = [(inicio + i) % n for i in range(QUERIES_POR_CICLO)]
 
+def fetch_ml(con, indices: list[int]) -> list[dict]:
+    """MercadoLibre — API pública, sin autenticación, devuelve listings con precio."""
     sess = requests.Session()
+    sess.headers.update({
+        "User-Agent": "Mozilla/5.0 (compatible; PoloAntiguoBot/1.0)",
+        "Accept":     "application/json",
+    })
     resultados = []
 
     for idx in indices:
         kw, tipo = QUERIES[idx]
         try:
-            r = sess.get(GOOGLE_URL, params={
-                "key": api_key,
-                "cx":  cx,
-                "q":   kw,
-                "num": 10,
-                "gl":  "ar",       # resultados de Argentina
-                "hl":  "es",
-                "lr":  "lang_es",
-                "dateRestrict": "m1",   # último mes
+            r = sess.get(ML_URL, params={
+                "q":     kw,
+                "limit": 50,
+                "sort":  "date_asc",
             }, timeout=15)
             r.raise_for_status()
-            items = r.json().get("items", [])
+            items = r.json().get("results", [])
 
             nuevos = 0
-            for item in items:
-                url_i  = item.get("link", "")
-                titulo = item.get("title", "")
-                desc   = item.get("snippet", "")
+            for it in items:
+                url_i  = it.get("permalink", "")
+                titulo = it.get("title", "")
+                if not url_i or not titulo:
+                    continue
+                url_c    = url_i.split("?")[0]
+                precio   = it.get("price")
+                moneda   = it.get("currency_id", "ARS")
+                imagen   = it.get("thumbnail", "")
+                ubicacion = (it.get("address") or {}).get("state_name", "AR")
+                lid      = f"ml_{it.get('id', abs(hash(url_c)))}"
+                if not es_nuevo(con, lid, "ml"):
+                    continue
+                marcar_visto(con, lid, "ml")
+                resultados.append({
+                    "id":        lid,
+                    "fuente":    "ML",
+                    "tipo":      tipo,
+                    "titulo":    titulo[:200],
+                    "precio":    precio,
+                    "moneda":    moneda,
+                    "url":       url_c,
+                    "imagen":    imagen,
+                    "ubicacion": ubicacion,
+                    "keyword":   kw,
+                    "raw":       json.dumps({
+                        "title":    titulo,
+                        "price":    precio,
+                        "currency": moneda,
+                        "url":      url_c,
+                        "tipo":     tipo,
+                        "location": ubicacion,
+                    }, ensure_ascii=False)[:600],
+                })
+                nuevos += 1
+
+            log.info(f"ML '{kw[:42]}': {len(items)} resultados, {nuevos} nuevos")
+            time.sleep(0.3)
+
+        except Exception as e:
+            log.warning(f"ML error '{kw[:42]}': {e}")
+            time.sleep(2.0)
+
+    return resultados
+
+
+def fetch_gnews(con, indices: list[int]) -> list[dict]:
+    """Google News RSS — sin API key, sin cuota, accesible desde Render."""
+    sess = requests.Session()
+    sess.headers.update({
+        "User-Agent": "Mozilla/5.0 (compatible; PoloAntiguoBot/1.0)",
+        "Accept":     "application/xml,text/xml",
+    })
+    resultados = []
+
+    for idx in indices:
+        kw, tipo = QUERIES[idx]
+        try:
+            r = sess.get(GNEWS_URL, params={
+                "q":    kw,
+                "hl":   "es-419",
+                "gl":   "AR",
+                "ceid": "AR:es",
+            }, timeout=15)
+            r.raise_for_status()
+
+            root  = ET.fromstring(r.content)
+            items = root.findall(".//item")
+
+            nuevos = 0
+            for it in items:
+                titulo = it.findtext("title", "")
+                url_i  = it.findtext("link", "")
+                desc   = it.findtext("description", "")
                 if not url_i or not titulo:
                     continue
                 url_c = url_i.split("?")[0].split("#")[0]
-                lid   = f"gcs_{abs(hash(url_c + kw))}"
-                if not es_nuevo(con, lid, "google"):
+                lid   = f"gn_{abs(hash(url_c + kw))}"
+                if not es_nuevo(con, lid, "gnews"):
                     continue
-                marcar_visto(con, lid, "google")
+                marcar_visto(con, lid, "gnews")
                 resultados.append({
                     "id":        lid,
                     "fuente":    "Web",
@@ -123,24 +190,13 @@ def fetch_google(con) -> list[dict]:
                 })
                 nuevos += 1
 
-            log.info(f"Google '{kw[:45]}': {len(items)} resultados, {nuevos} nuevos")
-            time.sleep(0.5)
+            log.info(f"GNews '{kw[:42]}': {len(items)} resultados, {nuevos} nuevos")
+            time.sleep(0.3)
 
         except Exception as e:
-            try:
-                log.warning(f"Google CSE error body: {r.text[:300]}")
-            except:
-                pass
-            log.warning(f"Google error: {e}")
+            log.warning(f"GNews error '{kw[:42]}': {e}")
             time.sleep(2.0)
 
-    hoy = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    con.execute("""
-        INSERT INTO serp_uso(fecha, cantidad) VALUES(?, 1)
-        ON CONFLICT(fecha) DO UPDATE SET cantidad = cantidad + 1
-    """, (hoy,))
-    con.commit()
-    log.info(f"Google CSE — total nuevos: {len(resultados)} (queries {inicio}–{(inicio+QUERIES_POR_CICLO-1)%n}/{n})")
     return resultados
 
 
@@ -148,7 +204,22 @@ def buscar_todo() -> list[dict]:
     from db import init_db
     init_db()
     con = get_con()
-    todos = fetch_google(con)
+
+    indices, inicio = _calcular_indices(con)
+    n = len(QUERIES)
+
+    todos = []
+    todos += fetch_ml(con, indices)
+    todos += fetch_gnews(con, indices)
+
+    hoy = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    con.execute("""
+        INSERT INTO serp_uso(fecha, cantidad) VALUES(?, 1)
+        ON CONFLICT(fecha) DO UPDATE SET cantidad = cantidad + 1
+    """, (hoy,))
+    con.commit()
+
+    log.info(f"Ciclo total: {len(todos)} nuevos — queries {inicio}–{(inicio+QUERIES_POR_CICLO-1)%n}/{n}")
     con.close()
     return todos
 

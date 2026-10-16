@@ -24,7 +24,7 @@ def _ciclo():
         log.error(f"Error en ciclo automático: {e}")
 
 scheduler = BackgroundScheduler()
-scheduler.add_job(_ciclo, "interval", minutes=90, id="ciclo_polo", misfire_grace_time=300)  # ### CAMBIO AQUÍ ### 90min: 4 queries×16 ciclos=64/día < límite Brave
+scheduler.add_job(_ciclo, "interval", minutes=90, id="ciclo_polo", misfire_grace_time=300)  # 90 min: ML API + Google News RSS, sin cuota diaria
 scheduler.start()
 atexit.register(lambda: scheduler.shutdown())
 
