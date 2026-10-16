@@ -163,9 +163,15 @@ Datos: {item.get('raw','')}"""
             temperature=0.2, max_tokens=600,
         )
         texto = resp.choices[0].message.content or ""
+        # ### CAMBIO AQUÍ ### — modelo a veces devuelve string vacío; lo tratamos como no relevante
+        if not texto.strip():
+            item.update({"relevante": False, "score": 0, "categoria": "otro",
+                         "razon": "Respuesta vacía del modelo", "mensaje_wa": ""})
+            log.info(f"✗ [0/10] {item.get('titulo','')[:60]} (respuesta vacía)")
+            return item
         analisis = _extraer_json(texto)
         if not analisis:
-            raise ValueError(f"JSON no encontrado en respuesta: {texto[:120]}")
+            raise ValueError(f"JSON no parseable: {texto[:80]}")
         item.update({
             "relevante": bool(analisis.get("relevante", False)),
             "score":     int(analisis.get("score", 0)),
